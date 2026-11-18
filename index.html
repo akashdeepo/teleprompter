@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Teleprompter</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/app.svg">
+<link rel="stylesheet" href="prompter.css">
+</head>
+<body>
+
+<!-- Scripts -->
+<section id="library" class="view" hidden>
+  <header class="bar">
+    <h1>Teleprompter</h1>
+    <button class="btn primary" id="newScript"><i class="ic" style="--i:url(icons/add-24-regular.svg)"></i>New script</button>
+  </header>
+  <div class="page">
+    <div id="scriptList"></div>
+    <div id="emptyLib" class="empty" hidden>
+      <p>Paste a script to start.</p>
+      <p class="muted">Copy the whole email: the prompter finds the part to read by itself.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Paste -->
+<section id="paste" class="view" hidden>
+  <header class="bar">
+    <button class="btn icon" data-back title="Back"><i class="ic" style="--i:url(icons/arrow-left-24-regular.svg)"></i></button>
+    <h1>New script</h1>
+    <button class="btn primary" id="pasteNext" disabled>Next</button>
+  </header>
+  <textarea id="pasteBox" class="sheetText" placeholder="Paste the script here" spellcheck="false"></textarea>
+</section>
+
+<!-- Where reading starts and ends -->
+<section id="trim" class="view" hidden>
+  <header class="bar">
+    <button class="btn icon" data-back title="Back"><i class="ic" style="--i:url(icons/arrow-left-24-regular.svg)"></i></button>
+    <input id="trimTitle" class="titleInput" aria-label="Name of the script">
+    <button class="btn primary" id="trimRead">Read</button>
+  </header>
+  <div class="trimHelp">
+    <span id="trimInfo"></span>
+    <span class="muted">Bright lines are read. Tap a line to start or end there.</span>
+  </div>
+  <div id="trimList" class="page"></div>
+  <div id="trimActions" class="trimActions" hidden>
+    <button class="btn" id="trimStart">Start reading here</button>
+    <button class="btn" id="trimEnd">End reading here</button>
+  </div>
+</section>
+
+<!-- Edit -->
+<section id="edit" class="view" hidden>
+  <header class="bar">
+    <button class="btn" id="editTrim">Start and end</button>
+    <h1 id="editTitle"></h1>
+    <span class="muted" id="editSaved">Saved</span>
+    <button class="btn primary" id="editDone">Done</button>
+  </header>
+  <textarea id="editBox" class="sheetText" spellcheck="false"></textarea>
+</section>
+
+<!-- Read -->
+<section id="read" class="view" hidden>
+  <div id="stage">
+    <div id="track"></div>
+    <div id="shade"></div>
+    <div id="marks"><i></i><i></i></div>
+    <div id="count" hidden></div>
+  </div>
+
+  <div class="hud" id="hudTop">
+    <button class="btn icon" id="readBack" title="Scripts"><i class="ic" style="--i:url(icons/arrow-left-24-regular.svg)"></i></button>
+    <div class="hudTitle" id="readTitle"></div>
+    <button class="btn" id="readEdit"><i class="ic" style="--i:url(icons/edit-24-regular.svg)"></i>Edit</button>
+    <button class="btn" id="readLook"><i class="ic" style="--i:url(icons/text-t-24-regular.svg)"></i>Display</button>
+  </div>
+
+  <div class="hud" id="hudBot">
+    <div class="progress"><i id="progress"></i></div>
+    <div class="row">
+      <div class="speed">
+        <button class="btn icon big" id="slower" title="Slower"><i class="ic" style="--i:url(icons/subtract-24-regular.svg)"></i></button>
+        <div class="wpm"><b id="wpm">105</b><span>words a minute</span></div>
+        <button class="btn icon big" id="faster" title="Faster"><i class="ic" style="--i:url(icons/add-24-regular.svg)"></i></button>
+      </div>
+      <div class="transport">
+        <button class="btn icon big" id="toStart" title="Back to the start"><i class="ic" style="--i:url(icons/previous-24-filled.svg)"></i></button>
+        <button class="btn icon big" id="backBit" title="Back a few lines"><i class="ic" style="--i:url(icons/arrow-undo-24-regular.svg)"></i></button>
+        <button class="play" id="play" title="Play"><i class="ic" id="playIcon" style="--i:url(icons/play-24-filled.svg)"></i></button>
+      </div>
+      <div class="times"><b id="left">0:00</b><span id="total">left</span></div>
+    </div>
+  </div>
+
+  <div class="sheet" id="look" hidden>
+    <div class="sheetHead"><h2>Display</h2><button class="btn" id="lookDone">Done</button></div>
+    <div class="grid">
+      <label>Text size <output id="o-size"></output><input type="range" id="s-size" min="24" max="140" step="2"></label>
+      <label>Line spacing <output id="o-lineH"></output><input type="range" id="s-lineH" min="1.2" max="2.4" step="0.05"></label>
+      <label>Side margins <output id="o-margin"></output><input type="range" id="s-margin" min="0" max="30" step="1"></label>
+      <label>Reading line <output id="o-marker"></output><input type="range" id="s-marker" min="10" max="70" step="1"></label>
+      <div class="field"><span>Space at pauses</span>
+        <div class="seg" id="s-pauses"><button data-v="0.5">Less</button><button data-v="1">Natural</button><button data-v="1.6">More</button></div></div>
+      <div class="field"><span>Countdown</span>
+        <div class="seg" id="s-countdown"><button data-v="0">Off</button><button data-v="3">3 s</button><button data-v="5">5 s</button></div></div>
+      <div class="field"><span>Lines</span>
+        <div class="seg" id="s-align"><button data-v="left">Left</button><button data-v="center">Centre</button></div></div>
+      <div class="field"><span>Letters</span>
+        <div class="seg" id="s-weight"><button data-v="500">Lighter</button><button data-v="600">Bold</button></div></div>
+      <div class="field toggles">
+        <button class="tog" id="s-mirrorX">Mirror for the glass</button>
+        <button class="tog" id="s-mirrorY">Upside down</button>
+        <button class="tog" id="s-dim">Dim lines already read</button>
+        <button class="tog" id="s-arrows">Reading-line arrows</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="dialog" id="dialog" hidden>
+  <div class="box">
+    <h2 id="dlgTitle"></h2>
+    <p id="dlgText" class="muted"></p>
+    <input id="dlgInput" hidden>
+    <div class="dlgButtons"><button class="btn" id="dlgCancel">Cancel</button><button class="btn primary" id="dlgOk">OK</button></div>
+  </div>
+</div>
+
+<script src="awake.js"></script>
+<script src="parse.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
