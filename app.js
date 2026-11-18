@@ -115,15 +115,69 @@
     b.addEventListener('click', function () { if (current === 'trim') trimBack(); else back('#/'); });
   });
 
-  // ---------- library ----------
+  // ---------- home: the script last opened comes first, ready to continue ----------
+  function progressOf(e) {
+    var s = script(e.id), pos = load('p.' + e.id, null);
+    var lines = s ? s.body.split('\n') : [];
+    var line = pos && pos.line >= 0 ? Math.min(pos.line, lines.length - 1) : -1;
+    var frac = line < 0 || lines.length < 2 ? 0 : line / (lines.length - 1);
+    var text = '';
+    for (var i = Math.max(line, 0); i < lines.length && !text; i++) text = lines[i].replace(/\*+|^\s*#+\s*/g, '').trim();
+    var wpm = e.wpm || S.wpm;
+    return { started: line >= 0, frac: frac, text: text, wpm: wpm,
+             left: Math.max(1, Math.round(e.words * (1 - frac) / wpm)), total: Math.max(1, Math.round(e.words / wpm)) };
+  }
+  function addTools(parent, e) {
+    parent.appendChild(iconButton('edit-24-regular', 'Rename', function () {
+      ask({ title: 'Rename', value: e.title, ok: 'Rename' }).then(function (v) {
+        if (v && v.trim()) { e.title = v.trim(); e.named = true; saveIndex(); renderLibrary(); }
+      });
+    }));
+    parent.appendChild(iconButton('delete-24-regular', 'Delete', function () {
+      ask({ title: 'Delete this script?', text: e.title, ok: 'Delete', danger: true }).then(function (ok) {
+        if (!ok) return;
+        index = index.filter(function (x) { return x.id !== e.id; });
+        drop('s.' + e.id);
+        drop('p.' + e.id);
+        saveIndex();
+        renderLibrary();
+      });
+    }));
+  }
   function renderLibrary() {
     index.sort(function (a, b) { return b.opened - a.opened; });
+    var first = index[0], rest = index.slice(1), n = 0;
+    function rise(el) {
+      el.classList.remove('rise');
+      void el.offsetWidth;                               // restart the entrance each time home opens
+      el.style.animationDelay = (n++ * 40) + 'ms';
+      el.classList.add('rise');
+    }
+    $('emptyLib').hidden = !!first;
+    $('resume').hidden = !first;
+    $('shelf').hidden = rest.length === 0;
+    if (first) {
+      var p = progressOf(first);
+      $('resumeLabel').textContent = p.started ? 'Continue reading' : 'Up next';
+      $('resumeTitle').textContent = first.title;
+      $('resumeLine').textContent = p.text ? (p.started ? '… ' : '') + p.text : '';
+      $('resumeBar').style.width = (p.frac * 100).toFixed(1) + '%';
+      $('resumeMeta').textContent = p.started
+        ? Math.round(p.frac * 100) + '% read · about ' + p.left + ' min left at ' + p.wpm + ' a minute'
+        : first.words + ' words · about ' + p.total + ' min at ' + p.wpm + ' a minute';
+      $('resumeVerb').textContent = p.started ? 'Continue' : 'Start reading';
+      $('resumeTools').innerHTML = '';
+      addTools($('resumeTools'), first);
+      rise($('resumeCard'));
+    }
     var list = $('scriptList');
     list.innerHTML = '';
-    $('emptyLib').hidden = index.length > 0;
-    index.forEach(function (e) {
+    rest.forEach(function (e) {
+      var q = progressOf(e);
       var row = document.createElement('div');
       row.className = 'script';
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
       var info = document.createElement('div');
       info.className = 'info';
       var t = document.createElement('div');
@@ -131,30 +185,24 @@
       t.textContent = e.title;
       var m = document.createElement('div');
       m.className = 'm';
-      m.textContent = e.words + ' words · about ' + Math.max(1, Math.round(e.words / (e.wpm || S.wpm))) +
-        ' min at ' + (e.wpm || S.wpm) + ' a minute · opened ' + when(e.opened);
+      m.textContent = e.words + ' words · ' + (q.started ? Math.round(q.frac * 100) + '% read' : 'about ' + q.total + ' min') +
+        ' · opened ' + when(e.opened);
       info.appendChild(t);
       info.appendChild(m);
       row.appendChild(info);
-      row.appendChild(iconButton('edit-24-regular', 'Rename', function () {
-        ask({ title: 'Rename', value: e.title, ok: 'Rename' }).then(function (v) {
-          if (v && v.trim()) { e.title = v.trim(); e.named = true; saveIndex(); renderLibrary(); }
-        });
-      }));
-      row.appendChild(iconButton('delete-24-regular', 'Delete', function () {
-        ask({ title: 'Delete this script?', text: e.title, ok: 'Delete', danger: true }).then(function (ok) {
-          if (!ok) return;
-          index = index.filter(function (x) { return x.id !== e.id; });
-          drop('s.' + e.id);
-          drop('p.' + e.id);
-          saveIndex();
-          renderLibrary();
-        });
-      }));
+      addTools(row, e);
+      var meter = document.createElement('div');
+      meter.className = 'meter';
+      meter.innerHTML = '<i style="width:' + (q.frac * 100).toFixed(1) + '%"></i>';
+      row.appendChild(meter);
       row.addEventListener('click', function () { nav('#/read/' + e.id); });
+      row.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); nav('#/read/' + e.id); } });
       list.appendChild(row);
+      rise(row);
     });
+    if (!first) Array.prototype.forEach.call(document.querySelectorAll('.steps li'), rise);
   }
+  $('resumeCard').addEventListener('click', function () { if (index[0]) nav('#/read/' + index[0].id); });
   function iconButton(icon, label, fn) {
     var b = document.createElement('button');
     b.className = 'btn icon';

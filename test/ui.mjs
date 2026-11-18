@@ -234,9 +234,29 @@ check('Page Down again pauses', !(await ev(`Prompter.R.playing`)));
 // back to the library
 await ev(`document.getElementById('readBack').click()`);
 await wait(300);
-const lib = await ev(`({ hash: location.hash, rows: document.querySelectorAll('.script').length, meta: document.querySelector('.script .m')?.textContent })`);
-check('library lists the script', lib.rows === 1, lib);
-await shot('9-library');
+const lib = await ev(`({ resume: !document.getElementById('resume').hidden, title: document.getElementById('resumeTitle').textContent,
+  meta: document.getElementById('resumeMeta').textContent, verb: document.getElementById('resumeVerb').textContent,
+  shelf: !document.getElementById('shelf').hidden, welcome: !document.getElementById('emptyLib').hidden })`);
+check('home offers to continue the script', lib.resume && lib.verb === 'Continue' && /% read/.test(lib.meta) && !lib.shelf && !lib.welcome, lib);
+await shot('9-home-continue');
+
+// a second script: it becomes "Up next", the first moves to the shelf with its progress
+await ev(`document.getElementById('newScript').click()`);
+await wait(200);
+await ev(`(() => { const b = document.getElementById('pasteBox'); b.value = 'पहली पंक्ति\\nदूसरी पंक्ति\\n**मुख्य बात**\\n[विराम]\\nअंत।'; b.dispatchEvent(new Event('input')); })()`);
+await ev(`document.getElementById('pasteNext').click()`);
+await wait(300);
+await ev(`document.querySelector('[data-back]:not([hidden])') && history.back()`);
+await wait(400);
+const two = await ev(`({ hash: location.hash, label: document.getElementById('resumeLabel').textContent, verb: document.getElementById('resumeVerb').textContent,
+  rows: document.querySelectorAll('#scriptList .script').length, bar: document.querySelector('#scriptList .meter i')?.style.width })`);
+check('newest script is up next, the other on the shelf', two.label === 'Up next' && two.verb === 'Start reading' && two.rows === 1 && parseFloat(two.bar) > 0, two);
+await shot('10-home-two');
+await size(800, 1280); await shot('11-home-portrait'); await size(1280, 800);
+await ev(`localStorage.clear(); location.hash = ''; location.reload()`);
+await wait(1000);
+check('welcome shows with no scripts', await ev(`!document.getElementById('emptyLib').hidden && document.getElementById('resume').hidden`));
+await shot('0-home-welcome');
 
 check('no errors in the page', errors.length === 0, errors);
 console.log(`\n${results.filter((r) => r.ok).length}/${results.length} passed. Screenshots: ${shots}`);

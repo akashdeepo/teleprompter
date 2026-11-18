@@ -3,27 +3,56 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#061c2d">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Teleprompter</title>
+<title>The RS Teleprompter</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/app.svg">
+<link rel="icon" href="icons/app-192.png">
 <link rel="stylesheet" href="prompter.css">
 </head>
 <body>
 
 <!-- Scripts -->
-<section id="library" class="view" hidden>
-  <header class="bar">
-    <h1>Teleprompter</h1>
-    <button class="btn primary" id="newScript"><i class="ic" style="--i:url(icons/add-24-regular.svg)"></i>New script</button>
-  </header>
-  <div class="page">
-    <div id="scriptList"></div>
-    <div id="emptyLib" class="empty" hidden>
-      <p>Paste a script to start.</p>
-      <p class="muted">Copy the whole email: the prompter finds the part to read by itself.</p>
-    </div>
+<section id="library" class="view home" hidden>
+  <div class="homeScroll">
+    <header class="mast">
+      <img class="emblem" src="brand/emblem.png" width="112" height="112" alt="Retired Student emblem">
+      <div class="wordmark">
+        <h1>The RS Teleprompter</h1>
+        <div class="rule" aria-hidden="true"><i></i><b></b><i></i></div>
+        <p class="tagline">Retired Student · Learning never retires</p>
+      </div>
+      <button class="btn primary newBtn" id="newScript"><i class="ic" style="--i:url(icons/add-24-regular.svg)"></i>New script</button>
+    </header>
+
+    <section id="resume" class="block" hidden>
+      <h3 class="label"><span id="resumeLabel">Continue reading</span></h3>
+      <div class="resumeCard" id="resumeCard">
+        <div class="resumeText">
+          <h2 id="resumeTitle"></h2>
+          <p class="quote" id="resumeLine"></p>
+          <div class="meter"><i id="resumeBar"></i></div>
+          <div class="metaRow"><p class="meta" id="resumeMeta"></p><span id="resumeTools"></span></div>
+        </div>
+        <button class="btn primary cta" id="resumeGo"><i class="ic" style="--i:url(icons/play-24-filled.svg)"></i><span id="resumeVerb">Continue</span></button>
+      </div>
+    </section>
+
+    <section id="shelf" class="block" hidden>
+      <h3 class="label"><span>Other scripts</span></h3>
+      <div id="scriptList"></div>
+    </section>
+
+    <section id="emptyLib" class="block welcome" hidden>
+      <p class="lead">Paste this week's script to begin.</p>
+      <ol class="steps">
+        <li><span class="num">I</span><b>Paste the email</b><span>All of it. The notes around the script are left out by themselves.</span></li>
+        <li><span class="num">II</span><b>Check the start and end</b><span>Bright lines are read. Tap a line to move either end.</span></li>
+        <li><span class="num">III</span><b>Read</b><span>Mirrored for the glass, at a pace you set in words a minute.</span></li>
+      </ol>
+    </section>
+
+    <footer class="homeFoot">Scripts are kept on this tablet only.</footer>
   </div>
 </section>
 
