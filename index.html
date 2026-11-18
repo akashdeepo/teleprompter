@@ -52,7 +52,15 @@
       </ol>
     </section>
 
-    <footer class="homeFoot">Scripts are kept on this tablet only.</footer>
+    <footer class="homeFoot">
+      <span class="footNote">Scripts are kept on this device only. Back them up now and then.</span>
+      <span class="footActions">
+        <button class="btn quiet" id="backupBtn"><i class="ic" style="--i:url(icons/arrow-download-24-regular.svg)"></i>Back up</button>
+        <button class="btn quiet" id="restoreBtn"><i class="ic" style="--i:url(icons/arrow-upload-24-regular.svg)"></i>Restore</button>
+        <button class="btn quiet" id="useRemote"><i class="ic" style="--i:url(icons/phone-vertical-24-regular.svg)"></i>Use as a remote</button>
+      </span>
+      <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+    </footer>
   </div>
 </section>
 
@@ -107,6 +115,8 @@
   <div class="hud" id="hudTop">
     <button class="btn icon" id="readBack" title="Scripts"><i class="ic" style="--i:url(icons/arrow-left-24-regular.svg)"></i></button>
     <div class="hudTitle" id="readTitle"></div>
+    <button class="btn" id="readSections"><i class="ic" style="--i:url(icons/text-bullet-list-ltr-24-regular.svg)"></i>Sections</button>
+    <button class="btn" id="readRemote"><i class="ic" style="--i:url(icons/phone-vertical-24-regular.svg)"></i>Remote<b class="dot" id="remoteDot" hidden></b></button>
     <button class="btn" id="readEdit"><i class="ic" style="--i:url(icons/edit-24-regular.svg)"></i>Edit</button>
     <button class="btn" id="readLook"><i class="ic" style="--i:url(icons/text-t-24-regular.svg)"></i>Display</button>
   </div>
@@ -151,6 +161,66 @@
       </div>
     </div>
   </div>
+
+  <div class="sheet" id="secSheet" hidden>
+    <div class="sheetHead"><h2>Sections</h2><button class="btn" id="secDone">Done</button></div>
+    <div id="secList" class="secList"></div>
+  </div>
+
+  <div class="sheet" id="remoteSheet" hidden>
+    <div class="sheetHead"><h2>Phone remote</h2><button class="btn" id="remoteDone">Done</button></div>
+    <div class="pair">
+      <div class="qr" id="qr"></div>
+      <div class="pairText">
+        <p class="pairStatus" id="pairStatus">Waiting for the phone…</p>
+        <p>Point the phone's camera at this code and open the link. Or open <b id="pairUrl"></b> on the phone, tap <b>Use as a remote</b> and type:</p>
+        <p class="code" id="pairCode"></p>
+        <p><button class="btn" id="pairNew">New code</button> <button class="btn" id="pairOff">Turn off</button></p>
+        <p class="muted small">The phone and tablet need the internet only to find each other. After that, every tap goes straight from the phone to the tablet, and no script ever leaves the tablet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- This device as the remote -->
+<section id="remote" class="view home" hidden>
+  <header class="bar">
+    <button class="btn icon" data-back title="Back"><i class="ic" style="--i:url(icons/arrow-left-24-regular.svg)"></i></button>
+    <h1>Remote</h1>
+    <span class="pill" id="rmStatus">Connecting…</span>
+  </header>
+  <div class="rmScroll">
+    <div id="rmJoin" class="rmJoin" hidden>
+      <p class="lead">Type the code shown on the tablet</p>
+      <p class="muted">On the tablet: open a script, tap <b>Remote</b>. Scanning its QR code with this phone's camera also works.</p>
+      <input id="rmCode" class="titleInput" placeholder="abcd-efgh" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Code from the tablet">
+      <button class="btn primary cta" id="rmConnect">Connect</button>
+    </div>
+    <div id="rmPanel" class="rmPanel" hidden>
+      <div class="rmNow">
+        <h2 id="rmTitle"></h2>
+        <p class="quote" id="rmLine"></p>
+        <div class="meter"><i id="rmBar"></i></div>
+        <p class="meta" id="rmTime"></p>
+      </div>
+      <div class="rmTransport">
+        <button class="btn icon big" id="rmBack" title="Back 3 lines" aria-label="Back 3 lines"><i class="ic" style="--i:url(icons/arrow-undo-24-regular.svg)"></i></button>
+        <button class="play rmPlay" id="rmPlay" aria-label="Play or pause"><i class="ic" id="rmPlayIcon" style="--i:url(icons/play-24-filled.svg)"></i></button>
+        <button class="btn icon big" id="rmFwd" title="Ahead 3 lines" aria-label="Ahead 3 lines"><i class="ic" style="--i:url(icons/arrow-redo-24-regular.svg)"></i></button>
+      </div>
+      <div class="rmSpeed">
+        <button class="btn icon big" id="rmSlower" aria-label="Slower"><i class="ic" style="--i:url(icons/subtract-24-regular.svg)"></i></button>
+        <div class="wpm"><b id="rmWpm">–</b><span>words a minute</span></div>
+        <button class="btn icon big" id="rmFaster" aria-label="Faster"><i class="ic" style="--i:url(icons/add-24-regular.svg)"></i></button>
+      </div>
+      <button class="btn rmStart" id="rmStart"><i class="ic" style="--i:url(icons/previous-24-filled.svg)"></i>Back to the start</button>
+      <div id="rmSections" class="block" hidden>
+        <h3 class="label"><span>Sections</span></h3>
+        <div id="rmSecList" class="secList"></div>
+      </div>
+      <p class="rmNote" id="rmNote" hidden></p>
+    </div>
+  </div>
 </section>
 
 <div class="dialog" id="dialog" hidden>
@@ -164,6 +234,8 @@
 
 <script src="awake.js"></script>
 <script src="parse.js"></script>
+<script src="qrcode.js"></script>
+<script src="remote.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

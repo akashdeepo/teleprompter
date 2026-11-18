@@ -98,9 +98,10 @@
     var v = parts[0] || 'library', id = parts[1];
     if (current === 'read' && v !== 'read') leaveRead();
     if (current === 'edit' && v !== 'edit') { flushEdit(); E.id = null; }
+    if (current === 'remote' && v !== 'remote' && window.Remote) window.Remote.leave();
     if ((v === 'read' || v === 'edit' || v === 'trim') && !script(id)) v = 'library';
-    if (['library', 'new', 'trim', 'read', 'edit'].indexOf(v) < 0) v = 'library';
-    ['library', 'paste', 'trim', 'edit', 'read'].forEach(function (n) {
+    if (['library', 'new', 'trim', 'read', 'edit', 'remote'].indexOf(v) < 0) v = 'library';
+    ['library', 'paste', 'trim', 'edit', 'read', 'remote'].forEach(function (n) {
       $(n).hidden = n !== (v === 'new' ? 'paste' : v);
     });
     current = v;
@@ -108,7 +109,13 @@
     else if (v === 'edit') openEdit(id);
     else if (v === 'trim') openTrim(id);
     else if (v === 'new') openPaste();
+    else if (v === 'remote') { if (window.Remote) window.Remote.view(id); }
     else renderLibrary();
+    notify();
+  }
+  // tells the phone remote (remote.js) that something it shows may have changed
+  function notify() {
+    try { window.dispatchEvent(new CustomEvent('prompter-state')); } catch (e) { /* very old browser: no remote */ }
   }
   window.addEventListener('popstate', route);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {
@@ -542,6 +549,7 @@
     $('left').textContent = clock((R.maxY - R.y) / v);
     $('total').textContent = 'left of ' + clock(R.maxY / v);
     $('progress').style.width = (R.maxY ? R.y / R.maxY * 100 : 0).toFixed(2) + '%';
+    notify();
   }
 
   function kick() { if (!R.raf) { R.last = 0; R.raf = requestAnimationFrame(tick); } }
@@ -607,6 +615,7 @@
     var on = R.playing || !!R.countdown;
     $('playIcon').style.setProperty('--i', 'url(icons/' + (on ? 'pause' : 'play') + '-24-filled.svg)');
     $('play').title = on ? 'Pause' : 'Play';
+    notify();
   }
 
   function setWpm(w) {
@@ -660,7 +669,7 @@
 
   // tap the text to pause or play; drag it to move back or ahead
   stage.addEventListener('pointerdown', function (e) {
-    if (!$('look').hidden) { closeLook(); return; }
+    if (sheetOpen()) { closeSheets(); return; }
     R.ptr = { id: e.pointerId, y0: e.clientY, from: R.y, moved: false };
     try { stage.setPointerCapture(e.pointerId); } catch (x) { /* not needed for touch */ }
   });
@@ -720,14 +729,58 @@
     E.line = R.anchor.i < 0 ? 0 : R.blocks[R.anchor.i].src;
     nav('#/edit/' + R.id);
   });
-  $('readLook').addEventListener('click', function () { pause(); $('look').hidden = false; syncLook(); });
-  $('lookDone').addEventListener('click', closeLook);
-  function closeLook() { $('look').hidden = true; }
+  var SHEETS = ['look', 'secSheet', 'remoteSheet'];
+  function sheetOpen() { return SHEETS.some(function (s) { return !$(s).hidden; }); }
+  function closeSheets() { SHEETS.forEach(function (s) { $(s).hidden = true; }); }
+  function openSheet(id) { pause(); closeSheets(); $(id).hidden = false; }
+  $('readLook').addEventListener('click', function () { openSheet('look'); syncLook(); });
+  $('lookDone').addEventListener('click', closeSheets);
+  $('secDone').addEventListener('click', closeSheets);
+  $('remoteDone').addEventListener('click', closeSheets);
+  $('readRemote').addEventListener('click', function () { openSheet('remoteSheet'); if (window.Remote) window.Remote.pairing(); });
+
+  // ---------- sections: the script's ### headings, to jump straight to one for a retake ----------
+  function sectionList() {
+    var out = [];
+    R.blocks.forEach(function (b, k) {
+      if (b.kind === 'head') out.push({ k: k, title: R.els[k].textContent, at: Math.max(0, (R.tops[k] + R.lineH / 2 - R.markerPx) / (R.v || 1)) });
+    });
+    return out;
+  }
+  function currentSection(list) {
+    var c = -1;
+    list.forEach(function (s, j) { if (R.anchor.i >= s.k) c = j; });
+    return c;
+  }
+  function jumpToSection(j) {
+    var s = sectionList()[j];
+    if (!s) return;
+    pause();
+    glideTo(R.tops[s.k] + R.lineH / 2 - R.markerPx);
+  }
+  $('readSections').addEventListener('click', function () {
+    openSheet('secSheet');
+    var list = sectionList(), cur = currentSection(list), box = $('secList');
+    box.innerHTML = '';
+    if (!list.length) {
+      box.innerHTML = '<p class="muted">This script has no sections. Lines that start with ### in the script become sections.</p>';
+      return;
+    }
+    list.forEach(function (s, j) {
+      var b = document.createElement('button');
+      b.className = 'secRow' + (j === cur ? ' on' : '');
+      b.innerHTML = '<span class="secTime"></span><span class="secTitle"></span>';
+      b.firstChild.textContent = clock(s.at);
+      b.lastChild.textContent = s.title;
+      b.addEventListener('click', function () { closeSheets(); jumpToSection(j); });
+      box.appendChild(b);
+    });
+  });
 
   // keyboard, and the Bluetooth page turners and foot pedals that act as one
   document.addEventListener('keydown', function (e) {
     if (current !== 'read' || !$('dialog').hidden) return;
-    if (!$('look').hidden) { if (e.key === 'Escape') closeLook(); return; }
+    if (sheetOpen()) { if (e.key === 'Escape') closeSheets(); return; }
     var k = e.key;
     if (k === ' ' || k === 'Enter' || k === 'PageDown' || k === 'MediaPlayPause' || k === 'k') toggle();
     else if (k === 'PageUp' || k === 'ArrowLeft') stepLines(3);
@@ -798,7 +851,82 @@
   }
 
   // for tests and for checking things from the console
-  window.Prompter = { R: R, S: S, layout: layout, setWpm: setWpm, play: play, pause: pause };
+  // ---------- back up and restore (scripts live only in this browser, so a reset loses them) ----------
+  $('backupBtn').addEventListener('click', function () {
+    if (!index.length) { ask({ title: 'Nothing to back up yet', text: 'Add a script first.', alert: true }); return; }
+    var data = { app: 'rs-teleprompter', version: 1, saved: new Date().toISOString(),
+                 scripts: index.map(function (e) { return { entry: e, text: script(e.id), pos: load('p.' + e.id, null) }; }) };
+    var d = new Date(), pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    var name = 'rs-teleprompter-backup-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.json';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.parentNode.removeChild(a); }, 2000);
+    ask({ title: 'Backup saved', text: index.length + (index.length === 1 ? ' script' : ' scripts') + ' saved as ' + name +
+      ' in the Downloads folder. Keep a copy somewhere safe too, such as Google Drive or an email to yourself.', alert: true });
+  });
+  $('restoreBtn').addEventListener('click', function () { $('restoreFile').value = ''; $('restoreFile').click(); });
+  $('restoreFile').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(reader.result); } catch (e) { data = null; }
+      if (!data || data.app !== 'rs-teleprompter' || !Array.isArray(data.scripts)) {
+        ask({ title: 'This is not a teleprompter backup', text: 'Choose a file named rs-teleprompter-backup-….json.', alert: true });
+        return;
+      }
+      var good = data.scripts.filter(function (s) { return s && s.entry && s.entry.id && s.text && typeof s.text.body === 'string'; });
+      var same = good.filter(function (s) { return entry(s.entry.id); }).length;
+      ask({ title: 'Restore ' + good.length + (good.length === 1 ? ' script?' : ' scripts?'),
+            text: 'Scripts already here stay.' + (same ? ' ' + same + ' of them ' + (same === 1 ? 'is' : 'are') + ' already here and will be replaced by the copy in the backup.' : ''),
+            ok: 'Restore' }).then(function (ok) {
+        if (!ok) return;
+        var done = 0;
+        good.forEach(function (s) {
+          if (!save('s.' + s.entry.id, s.text)) return;
+          if (s.pos) save('p.' + s.entry.id, s.pos);
+          index = index.filter(function (x) { return x.id !== s.entry.id; });
+          index.push(s.entry);
+          done++;
+        });
+        saveIndex();
+        renderLibrary();
+        if (done < good.length) full();
+      });
+    };
+    reader.readAsText(f);
+  });
+  $('useRemote').addEventListener('click', function () { nav('#/remote'); });
+
+  // ---------- what the phone remote sees and can do (remote.js) ----------
+  function remoteState() {
+    if (current !== 'read' || !R.id) return { open: false };
+    var secs = sectionList(), a = R.anchor, v = R.v || 1;
+    var el = R.els[a.i < 0 ? 0 : a.i];
+    return { open: true, title: entry(R.id).title, playing: R.playing, counting: !!R.countdown, wpm: R.wpm,
+             left: (R.maxY - R.y) / v, total: R.maxY / v, frac: R.maxY ? R.y / R.maxY : 0,
+             line: el ? el.textContent : '', sections: secs.map(function (s) { return { title: s.title, at: s.at }; }),
+             cur: currentSection(secs) };
+  }
+  function remoteCommand(c, arg) {
+    if (current !== 'read' || !R.id) return;
+    if (c === 'toggle') toggle();
+    else if (c === 'back') stepLines(3);
+    else if (c === 'fwd') stepLines(-3);
+    else if (c === 'faster') setWpm(R.wpm + 2);
+    else if (c === 'slower') setWpm(R.wpm - 2);
+    else if (c === 'start') { pause(); glideTo(0); }
+    else if (c === 'section') jumpToSection(arg);
+    notify();
+  }
+
+  window.Prompter = { R: R, S: S, layout: layout, setWpm: setWpm, play: play, pause: pause,
+                      state: remoteState, command: remoteCommand, clock: clock, ask: ask, nav: nav, back: back,
+                      awake: function (on) { if (on) Awake.on(); else Awake.off(); } };
 
   route();
 })();
